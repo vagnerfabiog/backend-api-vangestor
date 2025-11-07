@@ -1,0 +1,14 @@
+services:
+  postgres:
+    image: postgres:15
+    restart: always
+    environment:
+      POSTGRES_USER: motorista_user
+      POSTGRES_PASSWORD: 123456
+      POSTGRES_DB: motorista
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+volumes:
+  pgdata:
