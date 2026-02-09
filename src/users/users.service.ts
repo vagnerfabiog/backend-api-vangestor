@@ -5,9 +5,9 @@ import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class UsersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
-  async create(data: CreateUserDto) {
+  async create(tenantId: string, data: CreateUserDto) {
     const hash = await bcrypt.hash(data.password, 10);
     return this.prisma.user.create({
       data: {
@@ -15,6 +15,7 @@ export class UsersService {
         email: data.email,
         password: hash,
         role: (data.role as any) ?? 'DRIVER',
+        tenantId, // Multi-tenant
       },
       select: {
         id: true,
@@ -26,8 +27,9 @@ export class UsersService {
     });
   }
 
-  findAll() {
+  findAll(tenantId: string) {
     return this.prisma.user.findMany({
+      where: { tenantId }, // CRITICAL: Filter by tenant
       select: {
         id: true,
         name: true,

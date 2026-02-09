@@ -1,0 +1,176 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const client_1 = require("@prisma/client");
+const prisma = new client_1.PrismaClient();
+const firstNames = [
+    'Ana', 'João', 'Maria', 'Pedro', 'Lucas', 'Julia', 'Gabriel', 'Beatriz',
+    'Rafael', 'Larissa', 'Felipe', 'Camila', 'Matheus', 'Isabella', 'Bruno',
+    'Sophia', 'Gustavo', 'Valentina', 'Vitor', 'Manuela', 'Diego', 'Laura',
+    'Henrique', 'Alice', 'Thiago', 'Helena', 'Rodrigo', 'Luiza', 'Leonardo', 'Giovanna'
+];
+const lastNames = [
+    'Silva', 'Santos', 'Oliveira', 'Souza', 'Rodrigues', 'Ferreira', 'Alves',
+    'Pereira', 'Lima', 'Gomes', 'Costa', 'Ribeiro', 'Martins', 'Carvalho',
+    'Rocha', 'Almeida', 'Nascimento', 'Araújo', 'Melo', 'Barbosa', 'Cardoso',
+    'Correia', 'Dias', 'Fernandes', 'Freitas', 'Monteiro', 'Mendes', 'Barros'
+];
+const schools = [
+    'Colégio Monte Azul',
+    'Escola Municipal João Paulo II',
+    'Colégio Adventista',
+    'Escola Estadual Pedro Álvares Cabral',
+    'Colégio Santa Maria',
+    'Escola Municipal Dom Bosco',
+    'Colégio Objetivo',
+    'Escola Estadual Paulo Freire'
+];
+const routes = [
+    'Rota 1 - Manhã',
+    'Rota 2 - Manhã',
+    'Rota 1 - Tarde',
+    'Rota 2 - Tarde',
+    'Rota 3 - Manhã',
+    null
+];
+const shifts = ['Manhã', 'Tarde', 'Noite'];
+const grades = [
+    '1º Ano A', '1º Ano B', '2º Ano A', '2º Ano B', '3º Ano A', '3º Ano B',
+    '4º Ano A', '4º Ano B', '5º Ano A', '5º Ano B', '6º Ano', '7º Ano',
+    '8º Ano', '9º Ano'
+];
+const neighborhoods = [
+    'Jardim das Flores', 'Vila Nova', 'Centro', 'Jardim Paulista',
+    'Vila Industrial', 'Parque das Árvores', 'Jardim América', 'Vila São João',
+    'Jardim Europa', 'Parque Residencial', 'Vila Santa Rita', 'Jardim Bela Vista'
+];
+const relations = ['Mãe', 'Pai', 'Avó', 'Avô', 'Tia', 'Tio'];
+function randomItem(array) {
+    return array[Math.floor(Math.random() * array.length)];
+}
+function randomName() {
+    return `${randomItem(firstNames)} ${randomItem(lastNames)} ${randomItem(lastNames)}`;
+}
+function randomPhone() {
+    const ddd = ['11', '12', '13', '14', '15', '16', '17', '18', '19'];
+    const prefix = Math.random() > 0.5 ? '9' : '';
+    const number = Math.floor(10000000 + Math.random() * 90000000);
+    return `+55${randomItem(ddd)}${prefix}${number}`;
+}
+function randomEmail(name) {
+    const cleanName = name.toLowerCase().replace(/\s+/g, '.');
+    const domains = ['gmail.com', 'hotmail.com', 'outlook.com', 'yahoo.com'];
+    return `${cleanName}@${randomItem(domains)}`;
+}
+function randomDate(start, end) {
+    return new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()));
+}
+function randomAge(min, max) {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+async function main() {
+    console.log('🌱 Starting seed...\n');
+    console.log('🗑️  Clearing existing data...');
+    await prisma.studentResponsible.deleteMany();
+    await prisma.student.deleteMany();
+    await prisma.responsible.deleteMany();
+    console.log('✅ Data cleared\n');
+    console.log('👨‍👩‍👧‍👦 Creating responsibles...');
+    const responsibles = [];
+    for (let i = 0; i < 20; i++) {
+        const name = randomName();
+        const responsible = await prisma.responsible.create({
+            data: {
+                name,
+                phone: randomPhone(),
+                email: randomEmail(name),
+                invited: Math.random() > 0.7,
+                accepted: Math.random() > 0.8,
+            },
+        });
+        responsibles.push(responsible);
+        console.log(`  ✓ ${responsible.name}`);
+    }
+    console.log(`✅ Created ${responsibles.length} responsibles\n`);
+    console.log('👶 Creating students...');
+    const students = [];
+    for (let i = 0; i < 30; i++) {
+        const birthYear = new Date().getFullYear() - randomAge(6, 15);
+        const birthDate = randomDate(new Date(birthYear, 0, 1), new Date(birthYear, 11, 31));
+        const age = new Date().getFullYear() - birthDate.getFullYear();
+        const shift = randomItem(shifts);
+        const school = randomItem(schools);
+        const route = randomItem(routes);
+        const student = await prisma.student.create({
+            data: {
+                name: randomName(),
+                birthDate,
+                grade: randomItem(grades),
+                school,
+                address: `Rua ${randomItem(lastNames)}, ${Math.floor(Math.random() * 1000) + 1}`,
+                neighborhood: randomItem(neighborhoods),
+                city: 'Indaiatuba',
+                zipCode: `133${Math.floor(Math.random() * 90) + 10}-000`,
+                route,
+                shift,
+                monthlyFee: [350, 400, 450, 500, 550][Math.floor(Math.random() * 5)],
+                paymentDay: [5, 10, 15, 20][Math.floor(Math.random() * 4)],
+                paymentMethod: randomItem(['PIX', 'Dinheiro', 'Cartão', 'Transferência']),
+                contractStart: new Date(2025, 0, 1),
+                contractEnd: new Date(2025, 11, 31),
+                active: Math.random() > 0.1,
+                generalNotes: Math.random() > 0.7 ? 'Aluno pontual e educado.' : null,
+            },
+        });
+        students.push(student);
+        console.log(`  ✓ ${student.name} - ${age} anos - ${school}`);
+    }
+    console.log(`✅ Created ${students.length} students\n`);
+    console.log('🔗 Creating relationships...');
+    let relationshipCount = 0;
+    for (const student of students) {
+        const numResponsibles = Math.floor(Math.random() * 3) + 1;
+        const studentResponsibles = [];
+        const selectedResponsibles = [];
+        while (selectedResponsibles.length < numResponsibles) {
+            const responsible = randomItem(responsibles);
+            if (!selectedResponsibles.includes(responsible)) {
+                selectedResponsibles.push(responsible);
+            }
+        }
+        for (let i = 0; i < selectedResponsibles.length; i++) {
+            const responsible = selectedResponsibles[i];
+            const isPrimary = i === 0;
+            await prisma.studentResponsible.create({
+                data: {
+                    studentId: student.id,
+                    responsibleId: responsible.id,
+                    relation: randomItem(relations),
+                    isPrimary,
+                },
+            });
+            studentResponsibles.push(responsible.name);
+            relationshipCount++;
+        }
+        console.log(`  ✓ ${student.name} → ${studentResponsibles.join(', ')}`);
+    }
+    console.log(`✅ Created ${relationshipCount} relationships\n`);
+    console.log('📊 Summary:');
+    const totalStudents = await prisma.student.count();
+    const activeStudents = await prisma.student.count({ where: { active: true } });
+    const totalResponsibles = await prisma.responsible.count();
+    const totalRelationships = await prisma.studentResponsible.count();
+    console.log(`  Students: ${totalStudents} (${activeStudents} active)`);
+    console.log(`  Responsibles: ${totalResponsibles}`);
+    console.log(`  Relationships: ${totalRelationships}`);
+    console.log(`  Avg responsibles per student: ${(totalRelationships / totalStudents).toFixed(1)}`);
+    console.log('\n✅ Seed completed successfully!');
+}
+main()
+    .catch((e) => {
+    console.error('❌ Error seeding database:', e);
+    process.exit(1);
+})
+    .finally(async () => {
+    await prisma.$disconnect();
+});
+//# sourceMappingURL=seed.js.map

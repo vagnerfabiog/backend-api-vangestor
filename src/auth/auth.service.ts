@@ -5,7 +5,7 @@ import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class AuthService {
-  constructor(private prisma: PrismaService, private jwt: JwtService) {}
+  constructor(private prisma: PrismaService, private jwt: JwtService) { }
 
   async validateUser(email: string, pass: string) {
     const user = await this.prisma.user.findUnique({ where: { email } });
@@ -14,19 +14,24 @@ export class AuthService {
     }
 
     if (!user.password) {
-         throw new UnauthorizedException('Usuário sem senha configurada');
+      throw new UnauthorizedException('Usuário sem senha configurada');
     }
 
     const ok = await bcrypt.compare(pass, user.password);
     if (!ok) {
-      throw new UnauthorizedException('Usuário ou senha Invalida'); 
+      throw new UnauthorizedException('Usuário ou senha Invalida');
     }
 
     return user;
   }
 
   async login(user: any) {
-    const payload = { sub: user.id, email: user.email, role: user.role };
+    const payload = {
+      sub: user.id,
+      email: user.email,
+      role: user.role,
+      tenantId: user.tenantId, // CRITICAL: Include tenant in JWT
+    };
     return {
       access_token: this.jwt.sign(payload),
       user: {
@@ -34,6 +39,7 @@ export class AuthService {
         name: user.name,
         email: user.email,
         role: user.role,
+        tenantId: user.tenantId, // Include tenant in response
       },
     };
   }

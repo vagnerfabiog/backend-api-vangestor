@@ -7,10 +7,48 @@ import {
   IsNumber,
   IsArray,
   ValidateNested,
+  IsObject,
 } from 'class-validator';
 import { ResponsibleDto } from './responsible.dto';
 
+// Address DTO for structured addresses
+export class AddressDto {
+  @IsString()
+  street!: string;
+
+  @IsString()
+  number!: string;
+
+  @IsString()
+  neighborhood!: string;
+
+  @IsString()
+  city!: string;
+
+  @IsString()
+  zipCode!: string;
+}
+
+// Emergency contact DTO
+export class EmergencyContactDto {
+  @IsString()
+  name!: string;
+
+  @IsString()
+  phone!: string;
+}
+
+// Authorized person DTO
+export class AuthorizedPersonDto {
+  @IsString()
+  name!: string;
+
+  @IsString()
+  vehicle!: string;
+}
+
 export class CreateStudentDto {
+  // Step 1: Basic Info
   @IsString()
   name!: string;
 
@@ -27,6 +65,27 @@ export class CreateStudentDto {
 
   @IsOptional()
   @IsString()
+  shift?: string;
+
+  @IsOptional()
+  @IsString()
+  photoUri?: string;
+
+  @IsOptional()
+  @IsString()
+  entryTime?: string;
+
+  @IsOptional()
+  @IsString()
+  exitTime?: string;
+
+  @IsOptional()
+  @IsString()
+  vanPickupTime?: string;
+
+  // Home address
+  @IsOptional()
+  @IsString()
   address?: string;
 
   @IsOptional()
@@ -41,17 +100,41 @@ export class CreateStudentDto {
   @IsString()
   zipCode?: string;
 
+  // Step 2: Responsibles
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ResponsibleDto)
+  responsibles!: ResponsibleDto[];
+
+  // Step 3: Logistics
   @IsOptional()
-  @IsString()
-  route?: string;
+  @IsArray()
+  @IsString({ each: true })
+  weekDays?: string[];
 
   @IsOptional()
-  @IsString()
-  shift?: string;
+  @ValidateNested()
+  @Type(() => AddressDto)
+  pickupAddress?: AddressDto;
 
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => AddressDto)
+  dropoffAddress?: AddressDto;
+
+  @IsOptional()
+  @IsBoolean()
+  canGoAlone?: boolean;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => AuthorizedPersonDto)
+  authorizedPerson?: AuthorizedPersonDto;
+
+  // Step 4: Financial
   @IsOptional()
   @IsNumber()
-  monthlyFee?: number;
+  monthlyValue?: number;
 
   @IsOptional()
   @IsNumber()
@@ -62,34 +145,50 @@ export class CreateStudentDto {
   paymentMethod?: string;
 
   @IsOptional()
-  @IsDateString()
-  contractStart?: string;
-
-  @IsOptional()
-  @IsDateString()
-  contractEnd?: string;
-
-  @IsOptional()
   @IsString()
-  financialNotes?: string;
-
-  @IsOptional()
-  @IsString()
-  generalNotes?: string;
+  billingStartDate?: string;
 
   @IsOptional()
   @IsBoolean()
   active?: boolean;
 
+  @IsOptional()
   @IsString()
-  driverId!: string;
+  financialObservations?: string;
+
+  // Step 5: Health
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  medicalRestrictions?: string[];
+
+  @IsOptional()
+  @IsString()
+  healthPlan?: string;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => EmergencyContactDto)
+  emergencyContact?: EmergencyContactDto;
+
+  @IsOptional()
+  @IsString()
+  observations?: string;
+
+  @IsOptional()
+  @IsString()
+  contractUri?: string;
+
+  // Legacy fields (optional, for backward compatibility)
+  @IsOptional()
+  @IsString()
+  driverId?: string;
 
   @IsOptional()
   @IsString()
   vehicleId?: string;
 
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => ResponsibleDto)
-  responsibles!: ResponsibleDto[];
+  @IsOptional()
+  @IsString()
+  route?: string;
 }

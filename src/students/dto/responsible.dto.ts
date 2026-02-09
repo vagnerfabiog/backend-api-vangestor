@@ -1,4 +1,4 @@
-import { IsOptional, IsString, IsEmail, IsPhoneNumber } from 'class-validator';
+import { IsOptional, IsString, IsEmail, IsPhoneNumber, IsBoolean } from 'class-validator';
 
 export class ResponsibleDto {
   @IsString()
@@ -14,4 +14,12 @@ export class ResponsibleDto {
   @IsOptional()
   @IsString()
   relation?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  isPrimary?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  isFinancial?: boolean;
 }

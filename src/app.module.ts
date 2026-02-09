@@ -6,6 +6,9 @@ import { UsersModule } from './users/users.module';
 import { StudentsModule } from './students/students.module';
 import { RoutesModule } from './routes/routes.module';
 import { StopsModule } from './stops/stops.module';
+import { SchoolsModule } from './schools/schools.module';
+import { UploadModule } from './upload/upload.module';
+import { DriversModule } from './drivers/drivers.module';
 
 @Module({
   imports: [
@@ -15,7 +18,10 @@ import { StopsModule } from './stops/stops.module';
     UsersModule,
     StudentsModule,
     RoutesModule,
-    StopsModule
+    StopsModule,
+    SchoolsModule,
+    UploadModule,
+    DriversModule,
   ],
 })
 export class AppModule { }

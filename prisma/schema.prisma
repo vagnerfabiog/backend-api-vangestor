@@ -8,6 +8,44 @@ generator client {
   provider = "prisma-client-js"
 }
 
+// Multi-tenant: Each company/frota is a separate tenant
+model Tenant {
+  id        String   @id @default(uuid())
+  name      String   // Company name
+  slug      String   @unique // URL-friendly identifier
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  users         User[]
+  drivers       Driver[]
+  students      Student[]
+  vehicles      Vehicle[]
+  routes        Route[]
+  responsibles  Responsible[]
+  stops         Stop[]
+  schools       School[]
+}
+
+model School {
+  id           String   @id @default(uuid())
+  name         String
+  address      String
+  neighborhood String
+  city         String
+  zipCode      String
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Multi-tenant
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+}
+
 model User {
   id        String   @id @default(uuid())
   name      String
@@ -15,25 +53,61 @@ model User {
   phone     String?  @unique
   password  String?
   role      Role     @default(DRIVER)
+  active    Boolean  @default(true)
+  
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // Multi-tenant
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
   // Relações
   vehiclesOwned    Vehicle[]       @relation("VehicleOwner")
-  driverVehicles   DriverVehicle[]
-  students         Student[]       @relation("DriverStudents")
   responsibleLinks Responsible[]
-  routesDriven     Route[]         @relation("DriverRoutes")
+  driver           Driver?         // 1:1 relationship
+
+  @@index([tenantId])
+}
+
+model Driver {
+  id            String    @id @default(uuid())
+  cnh           String    // CNH number (required for drivers)
+  cnhCategory   String    // A, B, C, D, E, AB, AC, AD, AE
+  cnhExpiration DateTime  // CNH expiration date
+  active        Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Multi-tenant
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // 1:1 relationship with User
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Relations
+  vehicles DriverVehicle[]
+  routes   Route[]         @relation("DriverRoutes")
+  students Student[]       @relation("DriverStudents")
+
+  @@index([tenantId])
+  @@index([userId])
 }
 
 model Vehicle {
   id        String   @id @default(uuid())
-  plate     String   @unique
+  plate     String
   model     String
   capacity  Int?
   color     String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  // Multi-tenant
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   // Relações
   ownerId  String
@@ -41,6 +115,9 @@ model Vehicle {
   drivers  DriverVehicle[]
   students Student[]
   routes   Route[]         @relation("VehicleRoutes")
+
+  @@unique([plate, tenantId])
+  @@index([tenantId])
 }
 
 model DriverVehicle {
@@ -48,7 +125,7 @@ model DriverVehicle {
   driverId  String
   vehicleId String
 
-  driver  User    @relation(fields: [driverId], references: [id])
+  driver  Driver  @relation(fields: [driverId], references: [id])
   vehicle Vehicle @relation(fields: [vehicleId], references: [id])
 
   @@unique([driverId, vehicleId])
@@ -60,32 +137,67 @@ model Student {
   birthDate      DateTime?
   grade          String?
   school         String
+  
+  // Legacy address fields (keeping for backward compatibility)
   address        String?
   neighborhood   String?
   city           String?
   zipCode        String?
+  
+  // Photos and documents
+  photoUri       String?
+  contractUri    String?
+  
+  // School schedule
+  entryTime      String?
+  exitTime       String?
+  vanPickupTime  String?
+  
+  // Logistics
+  weekDays       String[]  @default([]) // ["S", "T", "Q", "Q2", "S2"]
+  pickupAddress  Json?     // {street, number, neighborhood, city, zipCode}
+  dropoffAddress Json?     // {street, number, neighborhood, city, zipCode}
+  canGoAlone     Boolean   @default(false)
+  authorizedPerson Json?   // {name, vehicle}
+  
+  // Route and shift
   route          String?
   shift          String?
+  
+  // Financial
   monthlyFee     Decimal?  @db.Decimal(10, 2)
   paymentDay     Int?
   paymentMethod  String?
   contractStart  DateTime?
   contractEnd    DateTime?
   financialNotes String?
+  
+  // Health information
+  medicalRestrictions String[] @default([]) // ["Alergia", "Asma", "Epilepsia", "Medicação"]
+  healthPlan          String?
+  emergencyContact    Json?    // {name, phone}
+  
+  // General
   generalNotes   String?
   active         Boolean   @default(true)
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
+  // Multi-tenant
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
   // Relações
   driverId  String?
   vehicleId String?
 
-  driver  User?    @relation("DriverStudents", fields: [driverId], references: [id])
+  driver  Driver?  @relation("DriverStudents", fields: [driverId], references: [id])
   vehicle Vehicle? @relation(fields: [vehicleId], references: [id])
 
-  responsibles Responsible[]
-  Stop         Stop[]
+  responsibles StudentResponsible[]
+  stops        Stop[]
+
+  @@index([tenantId])
 }
 
 model Responsible {
@@ -93,19 +205,41 @@ model Responsible {
   name      String
   phone     String
   email     String?
-  relation  String?
   invited   Boolean  @default(false) // true após o envio do link
   accepted  Boolean  @default(false) // true após criar senha e login
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // Relações
-  studentId String
-  student   Student @relation(fields: [studentId], references: [id])
+  // Multi-tenant
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   // vinculação opcional ao usuário (quando ele ativa a conta)
   userId String?
   user   User?   @relation(fields: [userId], references: [id])
+
+  // Relação N:N com estudantes
+  students StudentResponsible[]
+
+  @@index([tenantId])
+}
+
+// Tabela intermediária para relação N:N entre Student e Responsible
+model StudentResponsible {
+  id            String   @id @default(uuid())
+  studentId     String
+  responsibleId String
+  relation      String?  // Mãe, Pai, Avó, Tio, etc.
+  isPrimary     Boolean  @default(false) // Contato principal
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  student     Student     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  responsible Responsible @relation(fields: [responsibleId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, responsibleId])
+  @@index([studentId])
+  @@index([responsibleId])
 }
 
 enum Role {
@@ -129,12 +263,18 @@ model Route {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // Multi-tenant
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
   driverId  String?
   vehicleId String?
 
-  driver  User?    @relation("DriverRoutes", fields: [driverId], references: [id])
+  driver  Driver?  @relation("DriverRoutes", fields: [driverId], references: [id])
   vehicle Vehicle? @relation("VehicleRoutes", fields: [vehicleId], references: [id])
   stops   Stop[]
+
+  @@index([tenantId])
 }
 
 model Stop {
@@ -155,11 +295,17 @@ model Stop {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // Multi-tenant
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
   routeId String
   route   Route  @relation(fields: [routeId], references: [id])
 
   studentId String?
   student   Student? @relation(fields: [studentId], references: [id])
+
+  @@index([tenantId])
 }
 
 enum RouteStatus {

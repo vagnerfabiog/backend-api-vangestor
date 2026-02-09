@@ -6,9 +6,9 @@ import { RouteStatus, StopStatus } from '@prisma/client';
 
 @Injectable()
 export class RoutesService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
-  async create(data: CreateRouteDto) {
+  async create(tenantId: string, data: CreateRouteDto) {
     return this.prisma.route.create({
       data: {
         name: data.name,
@@ -18,6 +18,7 @@ export class RoutesService {
         active: data.active ?? true,
         driverId: data.driverId || null,
         vehicleId: data.vehicleId || null,
+        tenantId, // Multi-tenant
         stops: {
           create: data.stops?.map((s, i) => ({
             type: s.type,
@@ -26,6 +27,7 @@ export class RoutesService {
             radius: s.radius ?? 50,
             order: s.order ?? i + 1,
             studentId: s.studentId ?? null,
+            tenantId, // Multi-tenant: Stop also needs tenantId
           })),
         },
       },
@@ -40,8 +42,9 @@ export class RoutesService {
     });
   }
 
-  findAll() {
+  findAll(tenantId: string) {
     return this.prisma.route.findMany({
+      where: { tenantId }, // CRITICAL: Filter by tenant
       include: {
         driver: true,
         vehicle: true,
@@ -53,9 +56,9 @@ export class RoutesService {
     });
   }
 
-  async findOne(id: string) {
-    const route = await this.prisma.route.findUnique({
-      where: { id },
+  async findOne(tenantId: string, id: string) {
+    const route = await this.prisma.route.findFirst({
+      where: { id, tenantId }, // CRITICAL: Filter by tenant
       include: {
         driver: true,
         vehicle: true,
@@ -70,8 +73,8 @@ export class RoutesService {
     return route;
   }
 
-  async update(id: string, data: UpdateRouteDto) {
-    await this.findOne(id);
+  async update(tenantId: string, id: string, data: UpdateRouteDto) {
+    await this.findOne(tenantId, id);
 
     return this.prisma.route.update({
       where: { id },
@@ -85,16 +88,17 @@ export class RoutesService {
         vehicleId: data.vehicleId,
         stops: data.stops
           ? {
-              deleteMany: {}, // recria paradas
-              create: data.stops.map((s, i) => ({
-                type: s.type,
-                name: s.name,
-                address: s.address,
-                radius: s.radius ?? 50,
-                order: s.order ?? i + 1,
-                studentId: s.studentId ?? null,
-              })),
-            }
+            deleteMany: {}, // recria paradas
+            create: data.stops.map((s, i) => ({
+              type: s.type,
+              name: s.name,
+              address: s.address,
+              radius: s.radius ?? 50,
+              order: s.order ?? i + 1,
+              studentId: s.studentId ?? null,
+              tenantId, // Multi-tenant: Stop also needs tenantId
+            })),
+          }
           : undefined,
       },
       include: {
@@ -108,15 +112,15 @@ export class RoutesService {
     });
   }
 
-  async remove(id: string) {
-    await this.findOne(id);
+  async remove(tenantId: string, id: string) {
+    await this.findOne(tenantId, id);
     await this.prisma.stop.deleteMany({ where: { routeId: id } });
     return this.prisma.route.delete({ where: { id } });
   }
 
   // ✅ INICIAR ROTA
-  async startRoute(id: string) {
-    await this.findOne(id);
+  async startRoute(tenantId: string, id: string) {
+    await this.findOne(tenantId, id);
 
     return this.prisma.route.update({
       where: { id },
@@ -136,8 +140,8 @@ export class RoutesService {
   }
 
   // ✅ ENCERRAR ROTA
-  async finishRoute(id: string) {
-    await this.findOne(id);
+  async finishRoute(tenantId: string, id: string) {
+    await this.findOne(tenantId, id);
 
     // marca paradas pendentes como SKIPPED
     await this.prisma.stop.updateMany({
@@ -168,7 +172,7 @@ export class RoutesService {
   }
 
   // ✅ DADOS PARA TELA "EM ANDAMENTO"
-  async liveRoute(id: string) {
-    return this.findOne(id); // por enquanto reusa o findOne; depois podemos incluir posição GPS
+  async liveRoute(tenantId: string, id: string) {
+    return this.findOne(tenantId, id);
   }
 }
